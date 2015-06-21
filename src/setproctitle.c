@@ -73,10 +73,12 @@ static inline size_t spt_min(size_t a, size_t b) {
 
 
 /*
+ * 清空环境变量
  * For discussion on the portability of the various methods, see
  * http://lists.freebsd.org/pipermail/freebsd-stable/2008-June/043136.html
  */
 static int spt_clearenv(void) {
+	//glibc gnu 的 c库
 #if __GLIBC__
 	clearenv();
 

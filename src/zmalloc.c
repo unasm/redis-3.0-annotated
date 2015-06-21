@@ -109,6 +109,7 @@ static size_t used_memory = 0;
 static int zmalloc_thread_safe = 0;
 pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+//默认的分配函数为失败
 static void zmalloc_default_oom(size_t size) {
     fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
         size);
@@ -116,8 +117,11 @@ static void zmalloc_default_oom(size_t size) {
     abort();
 }
 
+//函数指针
+
 static void (*zmalloc_oom_handler)(size_t) = zmalloc_default_oom;
 
+//分配但是不初始化一定的内存
 void *zmalloc(size_t size) {
     void *ptr = malloc(size+PREFIX_SIZE);
 
@@ -131,7 +135,7 @@ void *zmalloc(size_t size) {
     return (char*)ptr+PREFIX_SIZE;
 #endif
 }
-
+//calloc  分配并且初始化一定的内存
 void *zcalloc(size_t size) {
     void *ptr = calloc(1, size+PREFIX_SIZE);
 

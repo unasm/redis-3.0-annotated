@@ -91,7 +91,9 @@ sds sdsnewlen(const void *init, size_t initlen) {
     // 以 \0 结尾
     sh->buf[initlen] = '\0';
 
-    // 返回 buf 部分，而不是整个 sdshdr
+    // 返回 buf 部分，而不是整个 sdshdr,
+	
+	// 和声明的类型并不匹配呢
     return (char*)sh->buf;
 }
 
@@ -241,7 +243,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     // s 最少需要的长度
     newlen = (len+addlen);
 
-    // 根据新长度，为 s 分配新空间所需的大小
+    // 根据新长度，为 s 分配新空间所需的大小, SDS_MAX_PREALLOC 为1mb，也就是每次最多分配1MB
     if (newlen < SDS_MAX_PREALLOC)
         // 如果新长度小于 SDS_MAX_PREALLOC 
         // 那么为它分配两倍于所需长度的空间
@@ -280,8 +282,8 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
  * references must be substituted with the new pointer returned by the call. */
 sds sdsRemoveFreeSpace(sds s) {
     struct sdshdr *sh;
-
-    sh = (void*) (s-(sizeof(struct sdshdr)));
+	//找到字符开始的起始地址
+    sh = (void*) (s - (sizeof(struct sdshdr)));
 
     // 进行内存重分配，让 buf 的长度仅仅足够保存字符串内容
     // T = O(N)

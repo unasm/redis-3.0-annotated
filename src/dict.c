@@ -78,7 +78,7 @@ static int _dictKeyIndex(dict *ht, const void *key);
 static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* -------------------------- hash functions -------------------------------- */
-
+//用于hash打散，尽量平均
 /* Thomas Wang's 32 bit Mix Function */
 unsigned int dictIntHashFunction(unsigned int key)
 {
@@ -122,6 +122,7 @@ unsigned int dictGenHashFunction(const void *key, int len) {
     /* 'm' and 'r' are mixing constants generated offline.
      They're not really 'magic', they just happen to work well.  */
     uint32_t seed = dict_hash_function_seed;
+	//也是24位的数字
     const uint32_t m = 0x5bd1e995;
     const int r = 24;
 
@@ -253,7 +254,7 @@ int dictResize(dict *d)
     // 不能在关闭 rehash 或者正在 rehash 的时候调用
     if (!dict_can_resize || dictIsRehashing(d)) return DICT_ERR;
 
-    // 计算让比率接近 1：1 所需要的最少节点数量
+    // 计算让比率接近 1：1 所需要的最少节点数量,DICT_HT_INITIAL_SIZE 默认为4
     minimal = d->ht[0].used;
     if (minimal < DICT_HT_INITIAL_SIZE)
         minimal = DICT_HT_INITIAL_SIZE;
@@ -277,6 +278,7 @@ int dictResize(dict *d)
  *
  * T = O(N)
  */
+
 int dictExpand(dict *d, unsigned long size)
 {
     // 新哈希表
@@ -362,7 +364,7 @@ int dictRehash(dict *d, int n) {
         dictEntry *de, *nextde;
 
         /* Check if we already rehashed the whole table... */
-        // 如果 0 号哈希表为空，那么表示 rehash 执行完毕
+        // 如果 0 号哈希表为空，那么表示 rehash 执行完毕,需要释放原来的节点
         // T = O(1)
         if (d->ht[0].used == 0) {
             // 释放 0 号哈希表
