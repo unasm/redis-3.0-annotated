@@ -436,7 +436,7 @@ long long timeInMilliseconds(void) {
 
 /* Rehash for an amount of time between ms milliseconds and ms+1 milliseconds */
 /*
- * 在给定毫秒数内，以 100 步为单位，对字典进行 rehash 。
+ * 在给定毫秒数内，以 100 步为单位，对字典进行 rehash 。超过了，就停止，返回移动的个数
  *
  * T = O(N)
  */
@@ -444,7 +444,7 @@ int dictRehashMilliseconds(dict *d, int ms) {
     // 记录开始时间
     long long start = timeInMilliseconds();
     int rehashes = 0;
-
+	//每次移动100个,为什么是100呢
     while(dictRehash(d,100)) {
         rehashes += 100;
         // 如果时间已过，跳出
@@ -536,6 +536,7 @@ dictEntry *dictAddRaw(dict *d, void *key)
     dictht *ht;
 
     // 如果条件允许的话，进行单步 rehash
+	// 为什么要特意单独做这么一部呢？
     // T = O(1)
     if (dictIsRehashing(d)) _dictRehashStep(d);
 
@@ -663,6 +664,7 @@ static int dictGenericDelete(dict *d, const void *key, int nofree)
     if (d->ht[0].size == 0) return DICT_ERR; /* d->ht[0].table is NULL */
 
     // 进行单步 rehash ，T = O(1)
+	// 为什么要先单步rehash呢？
     if (dictIsRehashing(d)) _dictRehashStep(d);
 
     // 计算哈希值
@@ -920,7 +922,7 @@ long long dictFingerprint(dict *d) {
 dictIterator *dictGetIterator(dict *d)
 {
     dictIterator *iter = zmalloc(sizeof(*iter));
-
+tjjj
     iter->d = d;
     iter->table = 0;
     iter->index = -1;
@@ -985,8 +987,8 @@ dictEntry *dictNext(dictIterator *iter)
                     iter->table++;
                     iter->index = 0;
                     ht = &iter->d->ht[1];
-                // 如果没有 rehash ，那么说明迭代已经完成
                 } else {
+					// 如果没有 rehash ，那么说明迭代已经完成
                     break;
                 }
             }
@@ -1054,7 +1056,9 @@ dictEntry *dictGetRandomKey(dict *d)
     if (dictSize(d) == 0) return NULL;
 
     // 进行单步 rehash
+	// 为什么特意单独做这么一步呢
     if (dictIsRehashing(d)) _dictRehashStep(d);
+
 
     // 如果正在 rehash ，那么将 1 号哈希表也作为随机查找的目标
     if (dictIsRehashing(d)) {
@@ -1170,7 +1174,7 @@ static unsigned long rev(unsigned long v) {
  * 迭代按以下方式执行：
  *
  * 1) Initially you call the function using a cursor (v) value of 0.
- *    一开始，你使用 0 作为游标来调用函数。
+ *    一开始，你使用 游标v = 0 来调用函数。
  * 2) The function performs one step of the iteration, and returns the
  *    new cursor value that you must use in the next call.
  *    函数执行一步迭代操作，
@@ -1472,7 +1476,7 @@ static int _dictKeyIndex(dict *d, const void *key)
         return -1;
 
     /* Compute the key hash value */
-    // 计算 key 的哈希值
+    // 计算 key 的哈希值,
     h = dictHashKey(d, key);
     // T = O(1)
     for (table = 0; table <= 1; table++) {

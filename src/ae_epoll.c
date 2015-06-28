@@ -118,7 +118,11 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     if (mask & AE_WRITABLE) ee.events |= EPOLLOUT;
     ee.data.u64 = 0; /* avoid valgrind warning */
     ee.data.fd = fd;
-
+	
+	// epfd epoll的实例
+	// op 请求的动作
+	// fd 被请求的文件
+	// ee 事件
     if (epoll_ctl(state->epfd,op,fd,&ee) == -1) return -1;
 
     return 0;

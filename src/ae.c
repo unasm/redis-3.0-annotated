@@ -62,6 +62,9 @@
 
 /*
  * 初始化事件处理器状态
+ * 
+ * 好像是事件处理器的调度入口
+ * @param int	setsize		时间处理器的大小，也就是处理的事件池个数
  */
 aeEventLoop *aeCreateEventLoop(int setsize) {
     aeEventLoop *eventLoop;

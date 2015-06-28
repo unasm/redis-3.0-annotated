@@ -283,6 +283,7 @@ void listDelNode(list *list, listNode *node)
  *  AL_START_TAIL ：从表尾想表头迭代
  *
  * T = O(1)
+ *	两个地方调用了这里，一个是serach，一个是dplicate
  */
 listIter *listGetIterator(list *list, int direction)
 {
