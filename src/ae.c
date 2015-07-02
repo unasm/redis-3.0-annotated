@@ -256,6 +256,8 @@ static void aeGetTime(long *seconds, long *milliseconds)
 /*
  * 在当前时间上加上 milliseconds 毫秒，
  * 并且将加上之后的秒数和毫秒数分别保存在 sec 和 ms 指针中。
+ *
+ * @note 在调用的时候，从来都是milliseconds = 1
  */
 static void aeAddMillisecondsToNow(long long milliseconds, long *sec, long *ms) {
     long cur_sec, cur_ms, when_sec, when_ms;
@@ -397,6 +399,7 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
      * indefinitely, and practice suggests it is. */
     // 通过重置事件的运行时间，
     // 防止因时间穿插（skew）而造成的事件处理混乱
+	// 想法就是，早点处理事件比晚点处理好，至少实践是这样
     if (now < eventLoop->lastTime) {
         te = eventLoop->timeEventHead;
         while(te) {
@@ -497,6 +500,10 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  *
  * The function returns the number of events processed. 
  * 函数的返回值为已处理事件的数量
+ * 
+ *
+ * 处理事件和file系列的事件,只有这两种事件？？
+ * 一共有两处调用了本处，一个是All_EVENT
  */
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
@@ -600,6 +607,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
  * writable/readable/exception 
  *
  * 在给定毫秒内等待，直到 fd 变成可写、可读或异常
+ * syncio.c, redis-cli
  */
 int aeWait(int fd, int mask, long long milliseconds) {
     struct pollfd pfd;

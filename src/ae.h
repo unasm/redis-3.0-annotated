@@ -116,7 +116,7 @@ typedef struct aeTimeEvent {
     // 时间事件的唯一标识符
     long long id; /* time event identifier. */
 
-    // 事件的到达时间
+    // 事件的到达时间,秒和毫秒,未来的时间
     long when_sec; /* seconds */
     long when_ms; /* milliseconds */
 
@@ -168,7 +168,7 @@ typedef struct aeEventLoop {
     // 最后一次执行时间事件的时间
     time_t lastTime;     /* Used to detect system clock skew */
 
-    // 已注册的文件事件
+    // 已注册的文件事件,unix哲学: 一切都是文件
     aeFileEvent *events; /* Registered events */
 
     // 已就绪的文件事件
@@ -181,6 +181,7 @@ typedef struct aeEventLoop {
     int stop;
 
     // 多路复用库的私有数据
+	// aeApiState 的 实例化数据
     void *apidata; /* This is used for polling API specific data */
 
     // 在处理事件前要执行的函数
