@@ -894,6 +894,7 @@ void activeExpireCycle(int type) {
      * expired keys to use memory for too much time. 
      *     如果上次处理遇到了时间上限，那么这次需要对所有数据库进行扫描，
      *     这可以避免过多的过期键占用空间
+	 *      这里也就是所谓的更加积极的方式
      */
     if (dbs_per_call > server.dbnum || timelimit_exit)
         dbs_per_call = server.dbnum;
@@ -1092,7 +1093,7 @@ int clientsCronHandleTimeout(redisClient *c) {
         !(c->flags & REDIS_BLOCKED) &&  /* no timeout for BLPOP */
         // 不检查订阅了频道的客户端
         dictSize(c->pubsub_channels) == 0 && /* no timeout for pubsub */
-        // 不检查订阅了模式的客户端
+        // 不检查订阅了模式的客户端,因为可能是监控器？？？
         listLength(c->pubsub_patterns) == 0 &&
         // 客户端最后一次与服务器通讯的时间已经超过了 maxidletime 时间
         (now - c->lastinteraction > server.maxidletime))
@@ -1136,7 +1137,8 @@ int clientsCronResizeQueryBuffer(redisClient *c) {
     size_t querybuf_size = sdsAllocSize(c->querybuf);
     time_t idletime = server.unixtime - c->lastinteraction;
 
-    /* There are two conditions to resize the query buffer:
+    /* 
+	 * There are two conditions to resize the query buffer:
      *
      * 符合以下两个条件的话，执行大小调整：
      *
@@ -1184,7 +1186,7 @@ void clientsCron(void) {
     // 客户端数量
     int numclients = listLength(server.clients);
 
-    // 要处理的客户端数量
+    // 要处理的客户端数量,10s内检查所有的
     int iterations = numclients/(server.hz*10);
 
     // 至少要处理 50 个客户端
@@ -1232,6 +1234,7 @@ void databasesCron(void) {
      * other processes saving the DB on disk. Otherwise rehashing is bad
      * as will cause a lot of copy-on-write of memory pages. */
     // 在没有 BGSAVE 或者 BGREWRITEAOF 执行时，对哈希表进行 rehash
+	// 不然的话，会引起很多的内存拷贝,纯粹是效率的考虑
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1) {
         /* We use global counters so if we stop the computation at a given
          * DB we'll be able to start from the successive in the next
@@ -1254,6 +1257,7 @@ void databasesCron(void) {
 
         /* Rehash */
         // 对字典进行渐进式 rehash
+		// 增加rehash的时间，尽量避免两个表的情况
         if (server.activerehashing) {
             for (j = 0; j < dbs_per_call; j++) {
                 int work_done = incrementallyRehash(rehash_db % server.dbnum);
@@ -1261,6 +1265,7 @@ void databasesCron(void) {
                 if (work_done) {
                     /* If the function did some work, stop here, we'll do
                      * more at the next cron loop. */
+					//如果函数移动了数据，停下来，下次移动更多
                     break;
                 }
             }
@@ -1272,6 +1277,7 @@ void databasesCron(void) {
  * virtual memory and aging there is to store the current time in objects at
  * every object access, and accuracy is not needed. To access a global var is
  * a lot faster than calling time(NULL) */
+//我们在全局变量里面存储unix 时间，因为每个对象里面，都需要有当前的unix时间，并且并不要求很精确，读取global变量比调用time()更快
 void updateCachedTime(void) {
     server.unixtime = time(NULL);
     server.mstime = mstime();
@@ -1329,6 +1335,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Software watchdog: deliver the SIGALRM that will reach the signal
      * handler if we don't return here fast enough. */
+	//软看门狗：超时之后，向函数句柄发送SIGALRM 信号
     if (server.watchdog_period) watchdogScheduleSignal(server.watchdog_period);
 
     /* Update the time cache. */
@@ -1355,7 +1362,9 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      *
      * LRU 时间的精度可以通过修改 REDIS_LRU_CLOCK_RESOLUTION 常量来改变。
      */
+	//(mstime() / 1000) & ( (1 << 24 )- 1),也就是380天的样子
     server.lruclock = getLRUClock();
+
 
     /* Record the max memory used since the server was started. */
     // 记录服务器的内存峰值
@@ -1379,7 +1388,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Show some info about non-empty databases */
-    // 打印数据库的键值对信息
+    // 打印全部数据库的键值对过期键的数量
     run_with_period(5000) {
         for (j = 0; j < server.dbnum; j++) {
             long long size, used, vkeys;
@@ -1401,6 +1410,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Show information about connected clients */
     // 如果服务器没有运行在 SENTINEL 模式下，那么打印客户端的连接信息
+	// 因为出于哨兵模式的时候，服务器所做的事情，就是监控其他服务器是否正常，它的客户端，就是几个固定的服务器 ，并没有打印客户端连接的必要
     if (!server.sentinel_mode) {
         run_with_period(5000) {
             redisLog(REDIS_VERBOSE,
@@ -1413,6 +1423,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* We need to do a few operations on clients asynchronously. */
     // 检查客户端，关闭超时客户端，并释放客户端多余的缓冲区
+	// 每次尽可能检查不少于50个客户端,
     clientsCron();
 
     /* Handle background operations on Redis databases. */
@@ -1437,6 +1448,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
         // 接收子进程发来的信号，非阻塞
         if ((pid = wait3(&statloc,WNOHANG,NULL)) != 0) {
+			//轮询，WNOHANG:return immediately if no child has exited
+			//如果子进程退出，则获取返回的pid
             int exitcode = WEXITSTATUS(statloc);
             int bysignal = 0;
             
@@ -1557,6 +1570,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     // 增加 loop 计数器
+	// Number of times the cron function run 
     server.cronloops++;
 
     return 1000/server.hz;
@@ -1565,7 +1579,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 /* This function gets called every time Redis is entering the
  * main loop of the event driven library, that is, before to sleep
  * for ready file descriptors. */
-// 每次处理事件之前执行
+// 在等待文件描述符响应之前，需要处理的事情
 void beforeSleep(struct aeEventLoop *eventLoop) {
     REDIS_NOTUSED(eventLoop);
 

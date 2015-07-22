@@ -74,7 +74,7 @@
 #define REDIS_SERVERPORT        6379    /* TCP port */
 #define REDIS_TCP_BACKLOG       511     /* TCP listen backlog */
 #define REDIS_MAXIDLETIME       0       /* default client timeout: infinite */
-#define REDIS_DEFAULT_DBNUM     16
+#define REDIS_DEFAULT_DBNUM     16		// 最初的数据库数量
 #define REDIS_CONFIGLINE_MAX    1024
 #define REDIS_DBCRON_DBS_PER_CALL 16
 #define REDIS_MAX_WRITE_PER_EVENT (1024*64)
@@ -298,6 +298,7 @@
 #define REDIS_DEFAULT_VERBOSITY REDIS_NOTICE
 
 /* Anti-warning macro... */
+//去掉因存在没有使用变量，编译时候的警告
 #define REDIS_NOTUSED(V) ((void) V)
 
 #define ZSKIPLIST_MAXLEVEL 32 /* Should be enough for 2^32 elements */
@@ -456,10 +457,12 @@ typedef struct redisDb {
     dict *dict;                 /* The keyspace for this DB */
 
     // 键的过期时间，字典的键为键，字典的值为过期事件 UNIX 时间戳
+	// 每个db的全部由过期时间的，都在这里了吧
     dict *expires;              /* Timeout of keys with a timeout set */
 
     // 正处于阻塞状态的键
     dict *blocking_keys;        /* Keys with clients waiting for data (BLPOP) */
+
 
     // 可以解除阻塞的键
     dict *ready_keys;           /* Blocked keys that received a PUSH */
@@ -1317,6 +1320,7 @@ struct redisServer {
     char *assert_file;
     int assert_line;
     int bug_report_start; /* True if bug report header was already logged. */
+	//默认是0，关闭
     int watchdog_period;  /* Software watchdog period in ms. 0 = off */
 };
 

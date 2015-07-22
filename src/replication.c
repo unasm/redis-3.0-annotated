@@ -218,6 +218,7 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         robj *selectcmd;
 
         /* For a few DBs we have pre-computed SELECT command. */
+		//REDIS_SHARED_SELECT_CMDS 特殊的常用的命令对象,用来节省内存
         if (dictid >= 0 && dictid < REDIS_SHARED_SELECT_CMDS) {
             selectcmd = shared.select[dictid];
         } else {

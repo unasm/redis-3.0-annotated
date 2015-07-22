@@ -1339,7 +1339,7 @@ int rewriteAppendOnlyFile(char *filename) {
      *
      * 创建临时文件
      *
-     * 注意这里创建的文件名和 rewriteAppendOnlyFileBackground() 创建的文件名稍有不同
+     * 注意这里创建的文件名和 rewriteAppendOnlyFileBackground() 创建的文件名稍有不同,少了一个bg
      */
     snprintf(tmpfile,256,"temp-rewriteaof-%d.aof", (int) getpid());
     fp = fopen(tmpfile,"w");
@@ -1526,6 +1526,7 @@ int rewriteAppendOnlyFileBackground(void) {
         closeListeningSockets(0);
 
         // 为进程设置名字，方便记认
+
         redisSetProcTitle("redis-aof-rewrite");
 
         // 创建临时文件，并进行 AOF 重写
