@@ -1591,6 +1591,8 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Send all the slaves an ACK request if at least one client blocked
      * during the previous event loop iteration. */
+	//如果上次事件遍历中有客户端被阻塞了,向所有的从服务器发送ACK请求
+	//意义何在？？
     if (server.get_ack_from_slaves) {
         robj *argv[3];
 
@@ -1615,6 +1617,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Write the AOF buffer on disk */
     // 将 AOF 缓冲区的内容写入到 AOF 文件
+	// 每次完成事件，就写入aof文件
     flushAppendOnlyFile(0);
 
     /* Call the Redis Cluster before sleep function. */
@@ -1831,6 +1834,7 @@ void initServerConfig() {
     // 初始化和复制相关的状态
     server.masterauth = NULL;
     server.masterhost = NULL;
+	//居然是写死，而不是全局变量，bug么？
     server.masterport = 6379;
     server.master = NULL;
     server.cached_master = NULL;
@@ -1902,10 +1906,15 @@ void initServerConfig() {
  * If it will not be possible to set the limit accordingly to the configured
  * max number of clients, the function will do the reverse setting
  * server.maxclients to the value that we can actually handle. */
+/*
+ * 该函数会尽可能根据最大客户端配置，获取最大需要的文件描述符,redis自身也会因为长连接
+ * 监听socket，日志文件等等使用一些描述符
+ */
 void adjustOpenFilesLimit(void) {
     rlim_t maxfiles = server.maxclients+REDIS_MIN_RESERVED_FDS;
     struct rlimit limit;
-
+	
+	//求最大可用的文件描述符
     if (getrlimit(RLIMIT_NOFILE,&limit) == -1) {
         redisLog(REDIS_WARNING,"Unable to obtain the current NOFILE limit (%s), assuming 1024 and setting the max clients configuration accordingly.",
             strerror(errno));
@@ -1922,6 +1931,7 @@ void adjustOpenFilesLimit(void) {
             /* Try to set the file limit to match 'maxfiles' or at least
              * to the higher value supported less than maxfiles. */
             f = maxfiles;
+			//尽可能的增大文件描述符
             while(f > oldlimit) {
                 int decr_step = 16;
 
@@ -1940,8 +1950,10 @@ void adjustOpenFilesLimit(void) {
              * our last try was even lower. */
             if (f < oldlimit) f = oldlimit;
 
+			//没有增加到想要的地步
             if (f != maxfiles) {
                 int old_maxclients = server.maxclients;
+				//除去redis自身需要的描述符，其他的都给客户端
                 server.maxclients = f-REDIS_MIN_RESERVED_FDS;
                 if (server.maxclients < 1) {
                     redisLog(REDIS_WARNING,"Your current 'ulimit -n' "
@@ -1976,22 +1988,33 @@ void adjustOpenFilesLimit(void) {
 
 /* Initialize a set of file descriptors to listen to the specified 'port'
  * binding the addresses specified in the Redis server configuration.
+ *  
+ * 初始化文件描述符到指定的端口
  *
  * The listening file descriptors are stored in the integer array 'fds'
  * and their number is set in '*count'.
+ *
+ * 文件描述符保存在 fds里面，他们的数值保存在count里面
  *
  * The addresses to bind are specified in the global server.bindaddr array
  * and their number is server.bindaddr_count. If the server configuration
  * contains no specific addresses to bind, this function will try to
  * bind * (all addresses) for both the IPv4 and IPv6 protocols.
+ * 地址绑定在全局变量server.bindaddr里面,数量保存在server.bindaddr_count 里，
+ * 如果配置里面没有指明绑定的地址，函数会尝试着绑定要ipv4和ipv6通用的地址
  *
  * On success the function returns REDIS_OK.
+ * 成功的话，返回REDIS_OK
  *
  * On error the function returns REDIS_ERR. For the function to be on
  * error, at least one of the server.bindaddr addresses was
  * impossible to bind, or no bind addresses were specified in the server
  * configuration but the function is not able to bind * for at least
- * one of the IPv4 or IPv6 protocols. */
+ * one of the IPv4 or IPv6 protocols. 
+ *
+ * 错误的时候，返回REDIS_ERR,在有一个地址没有绑定的时候，
+ * 或者是没有指定地址但是不能绑定ipv4或者ipv6上
+ * */
 int listenToPort(int port, int *fds, int *count) {
     int j;
 
@@ -2201,6 +2224,7 @@ void initServer() {
      * at 3 GB using maxmemory with 'noeviction' policy'. This avoids
      * useless crashes of the Redis instance for out of memory. */
     // 对于 32 位实例来说，默认将最大可用内存限制在 3 GB
+	// 这样好么，直接说使用3G内存
     if (server.arch_bits == 32 && server.maxmemory == 0) {
         redisLog(REDIS_WARNING,"Warning: 32 bit instance detected but no memory limit set. Setting 3 GB maxmemory limit with 'noeviction' policy now.");
         server.maxmemory = 3072LL*(1024*1024); /* 3 GB */
@@ -2592,13 +2616,15 @@ int processCommand(redisClient *c) {
      *
      * However we don't perform the redirection if:
      *
-     * 不过，如果有以下情况出现，那么节点不进行转向：
+     * 不过，如果有以下情况出现，那么节点不进行转向:
+	 * 转向的原因是要把命令交给正确的主机处理这个事情
      *
      * 1) The sender of this command is our master.
      *    命令的发送者是本节点的主节点
      *
      * 2) The command has no key arguments. 
      *    命令没有 key 参数
+	 *
      */
     if (server.cluster_enabled &&
         !(c->flags & REDIS_MASTER) &&
@@ -2967,7 +2993,10 @@ void bytesToHuman(char *s, unsigned long long n) {
 
 /* Create the string returned by the INFO command. This is decoupled
  * by the INFO command itself as we need to report the same information
- * on memory corruption problems. */
+ * on memory corruption problems. 
+ *
+ * 在内存崩溃的时候，我们需要检查的信息
+ * */
 sds genRedisInfoString(char *section) {
     sds info = sdsempty();
     time_t uptime = server.unixtime-server.stat_starttime;
@@ -2991,7 +3020,8 @@ sds genRedisInfoString(char *section) {
         static int call_uname = 1;
         static struct utsname name;
         char *mode;
-
+		
+		//不是集群，就是哨兵，不然就是单机模式
         if (server.cluster_enabled) mode = "cluster";
         else if (server.sentinel_mode) mode = "sentinel";
         else mode = "standalone";
@@ -3679,6 +3709,7 @@ int freeMemoryIfNeeded(void) {
 
                         /* If the key exists, is our pick. Otherwise it is
                          * a ghost and we need to try the next element. */
+						//找到了就break ，ghost是什么意思
                         if (de) {
                             bestkey = dictGetKey(de);
                             break;
@@ -3786,6 +3817,7 @@ void createPidFile(void) {
     }
 }
 
+//变成守护进程
 void daemonize(void) {
     int fd;
 

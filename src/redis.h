@@ -124,6 +124,7 @@
 #define REDIS_IP_STR_LEN INET6_ADDRSTRLEN
 #define REDIS_PEER_ID_LEN (REDIS_IP_STR_LEN+32) /* Must be enough for ip:port */
 #define REDIS_BINDADDR_MAX 16
+//每次最少的文件描述符数量
 #define REDIS_MIN_RESERVED_FDS 32
 
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
@@ -438,10 +439,11 @@ typedef struct redisObject {
 /* To improve the quality of the LRU approximation we take a set of keys
  * that are good candidate for eviction across freeMemoryIfNeeded() calls.
  *
- * Entries inside the eviciton pool are taken ordered by idle time, putting
+ * Entries inside the eviction pool are taken ordered by idle time, putting
  * greater idle times to the right (ascending order).
  *
  * Empty entries have the key pointer set to NULL. */
+//为了增加LRU近似的质量，我们通过 freeMemoryIfNeeded  选择了一些好的
 #define REDIS_EVICTION_POOL_SIZE 16
 struct evictionPoolEntry {
     unsigned long long idle;    /* Object idle time. */
@@ -1041,6 +1043,7 @@ struct redisServer {
 
     // 所使用的 fsync 策略（每个写入/每秒/从不）
     int aof_fsync;                  /* Kind of fsync() policy */
+	//AOF 的 fileName
     char *aof_filename;             /* Name of the AOF file */
     int aof_no_fsync_on_rewrite;    /* Don't fsync if a rewrite is in prog. */
     int aof_rewrite_perc;           /* Rewrite AOF if % growth is > M and... */
@@ -1134,6 +1137,7 @@ struct redisServer {
 
 
     /* Replication (master) */
+	//主从复制的数据库 id
     int slaveseldb;                 /* Last SELECTed DB in replication output */
     // 全局复制偏移量（一个累计值）
     long long master_repl_offset;   /* Global replication offset */
@@ -1228,6 +1232,7 @@ struct redisServer {
     /* Limits */
     int maxclients;                 /* Max number of simultaneous clients */
     unsigned long long maxmemory;   /* Max number of memory bytes to use */
+	//内存不足的时候，怎么处理，随机删除key，还是删除lru,还是带时间的键等等，详见freeMemoryIfNeeded
     int maxmemory_policy;           /* Policy for key eviction */
     int maxmemory_samples;          /* Pricision of random sampling */
 
