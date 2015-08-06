@@ -922,7 +922,6 @@ long long dictFingerprint(dict *d) {
 dictIterator *dictGetIterator(dict *d)
 {
     dictIterator *iter = zmalloc(sizeof(*iter));
-tjjj
     iter->d = d;
     iter->table = 0;
     iter->index = -1;

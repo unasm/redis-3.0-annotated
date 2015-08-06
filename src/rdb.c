@@ -1641,6 +1641,7 @@ int rdbLoad(char *filename) {
         return REDIS_ERR;
     }
     rdbver = atoi(buf+5);
+	//RDB版本不兼容的时候，就会这样
     if (rdbver < 1 || rdbver > REDIS_RDB_VERSION) {
         fclose(fp);
         redisLog(REDIS_WARNING,"Can't handle RDB format version %d",rdbver);
@@ -1698,6 +1699,7 @@ int rdbLoad(char *filename) {
         }
             
         // 读入数据 EOF （不是 rdb 文件的 EOF）
+		// 什么影响?
         if (type == REDIS_RDB_OPCODE_EOF)
             break;
 

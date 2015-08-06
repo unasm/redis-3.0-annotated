@@ -467,6 +467,7 @@ void clusterInit(void) {
 
     /* Lock the cluster config file to make sure every node uses
      * its own nodes.conf. */
+	//锁住config文件，保证每个节点，用的都是自己的config文件
     if (clusterLockConfig(server.cluster_configfile) == REDIS_ERR)
         exit(1);
 

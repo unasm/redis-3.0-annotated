@@ -848,7 +848,7 @@ struct redisServer {
     // 命令表（无 rename 配置选项的作用）
     dict *orig_commands;        /* Command table before command renaming. */
 
-    // 事件状态
+    // 事件状态,包括时间事件和文件事件
     aeEventLoop *el;
 
     // 最近一次使用时钟
@@ -886,12 +886,12 @@ struct redisServer {
 
     int tcp_backlog;            /* TCP listen() backlog */
 
-    // 地址
+    // 想要去绑定的地址的配置信息,该配置来自编译的时候的bind指定,argv
     char *bindaddr[REDIS_BINDADDR_MAX]; /* Addresses we should bind to */
     // 地址数量
     int bindaddr_count;         /* Number of addresses in server.bindaddr[] */
 
-    // UNIX 套接字
+    // UNIX 套接字文件地址
     char *unixsocket;           /* UNIX socket path */
     mode_t unixsocketperm;      /* UNIX socket permission */
 

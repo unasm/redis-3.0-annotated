@@ -246,6 +246,7 @@ static int anetSetReuseAddr(char *err, int fd) {
  */
 static int anetCreateSocket(char *err, int domain) {
     int s;
+	//创建一个tcp连接
     if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
         anetSetError(err, "creating socket: %s", strerror(errno));
         return ANET_ERR;
@@ -253,6 +254,7 @@ static int anetCreateSocket(char *err, int domain) {
 
     /* Make sure connection-intensive things like the redis benchmark
      * will be able to close/open sockets a zillion of times */
+	//保证连接密集型的事务，如redis benchmark,可以close/open socket 无数次
     if (anetSetReuseAddr(err,s) == ANET_ERR) {
         close(s);
         return ANET_ERR;

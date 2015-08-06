@@ -169,6 +169,12 @@ void aeStop(aeEventLoop *eventLoop) {
 /*
  * 根据 mask 参数的值，监听 fd 文件的状态，
  * 当 fd 可用时，执行 proc 函数
+ * @param	*proc		对应的处理函数
+ * @param	*eventLoop	事件处理中心
+ * @param	fd			本地的socket描述字
+ * @param	mask		AE_READABLE,读事件的处理函数，AE_WRITABLE,注册写事件的处理函数
+ * @param	clientData	NULL
+ *
  */
 int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
         aeFileProc *proc, void *clientData)
@@ -178,7 +184,7 @@ int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
         return AE_ERR;
     }
 
-    if (fd >= eventLoop->setsize) return AE_ERR;
+    //if (fd >= eventLoop->setsize) return AE_ERR;
 
     // 取出文件事件结构
     aeFileEvent *fe = &eventLoop->events[fd];

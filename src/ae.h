@@ -157,6 +157,7 @@ typedef struct aeFiredEvent {
 typedef struct aeEventLoop {
 
     // 目前已注册的最大描述符
+	// 下面两个的区别是什么
     int maxfd;   /* highest file descriptor currently registered */
 
     // 目前已追踪的最大描述符
@@ -169,6 +170,7 @@ typedef struct aeEventLoop {
     time_t lastTime;     /* Used to detect system clock skew */
 
     // 已注册的文件事件,unix哲学: 一切都是文件
+	// acceptUnixHandler 处理文件类型的时间
     aeFileEvent *events; /* Registered events */
 
     // 已就绪的文件事件
@@ -188,6 +190,7 @@ typedef struct aeEventLoop {
     aeBeforeSleepProc *beforesleep;
 
 } aeEventLoop;
+
 
 /* Prototypes */
 aeEventLoop *aeCreateEventLoop(int setsize);

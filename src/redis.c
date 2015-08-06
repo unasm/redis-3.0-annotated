@@ -2014,6 +2014,8 @@ void adjustOpenFilesLimit(void) {
  *
  * 错误的时候，返回REDIS_ERR,在有一个地址没有绑定的时候，
  * 或者是没有指定地址但是不能绑定ipv4或者ipv6上
+ *
+ * 多个socket本来不能绑定同一个端口，所以要有SO_REUSEADDR 复用端口,但是bindaddr，本地地址，必须不同
  * */
 int listenToPort(int port, int *fds, int *count) {
     int j;
@@ -2021,6 +2023,8 @@ int listenToPort(int port, int *fds, int *count) {
     /* Force binding of 0.0.0.0 if no bind address is specified, always
      * entering the loop if j == 0. */
     if (server.bindaddr_count == 0) server.bindaddr[0] = NULL;
+	//为什么要强调 j == 0 呢，不是必然会从0开始么
+	//bindaddr_count 由编译时参数决定
     for (j = 0; j < server.bindaddr_count || j == 0; j++) {
         if (server.bindaddr[j] == NULL) {
             /* Bind * for both IPv6 and IPv4, we enter here only if
@@ -2057,6 +2061,7 @@ int listenToPort(int port, int *fds, int *count) {
                 port, server.neterr);
             return REDIS_ERR;
         }
+		//设置非阻塞
         anetNonBlock(NULL,fds[*count]);
         (*count)++;
     }
@@ -2184,7 +2189,7 @@ void initServer() {
 
     /* Create the serverCron() time event, that's our main way to process
      * background operations. */
-    // 为 serverCron() 创建时间事件
+    // 为 serverCron() 创建时间事件,这是我们处理后台进程的主要方式
     if(aeCreateTimeEvent(server.el, 1, serverCron, NULL, NULL) == AE_ERR) {
         redisPanic("Can't create the serverCron time event.");
         exit(1);
@@ -2204,8 +2209,14 @@ void initServer() {
     }
 
     // 为本地套接字关联应答处理器
-    if (server.sofd > 0 && aeCreateFileEvent(server.el,server.sofd,AE_READABLE,
-        acceptUnixHandler,NULL) == AE_ERR) redisPanic("Unrecoverable error creating server.sofd file event.");
+    if (server.sofd > 0 && 
+			aeCreateFileEvent(
+				server.el,
+				server.sofd,
+				AE_READABLE,
+				acceptUnixHandler,
+				NULL
+			) == AE_ERR) redisPanic("Unrecoverable error creating server.sofd file event.");
 
     /* Open the AOF file if needed. */
     // 如果 AOF 持久化功能已经打开，那么打开或创建一个 AOF 文件
@@ -3489,23 +3500,36 @@ void monitorCommand(redisClient *c) {
  *
  * LRU approximation algorithm
  *
+ * LRU近似算法
+ *
  * Redis uses an approximation of the LRU algorithm that runs in constant
  * memory. Every time there is a key to expire, we sample N keys (with
  * N very small, usually in around 5) to populate a pool of best keys to
  * evict of M keys (the pool size is defined by REDIS_EVICTION_POOL_SIZE).
  *
+ * Redis 使用了一种占用固定内存的近似LRU算法,每次有key过期,随机采用N个(很小，一般为5)key值，
+ * 然后,把他们加到 一个长度为M(16)个key的预备淘汰列表里面
+ *
  * The N keys sampled are added in the pool of good keys to expire (the one
  * with an old access time) if they are better than one of the current keys
  * in the pool.
  *
+ * 
+ *
  * After the pool is populated, the best key we have in the pool is expired.
  * However note that we don't remove keys from the pool when they are deleted
  * so the pool may contain keys that no longer exist.
+ * 当淘汰池填充之后，最小的值可能已经过期了，但是我们并不删除已经删除的值，所以
+ * 淘汰池可能包含已经不存在的key
  *
  * When we try to evict a key, and all the entries in the pool don't exist
  * we populate it again. This time we'll be sure that the pool has at least
  * one key that can be evicted, if there is at least one key that can be
- * evicted in the whole database. */
+ * evicted in the whole database. 
+ *
+ * 当我们想淘汰一个key，但是淘汰池里面却没有值存在，我们就在此填充，保证每次至少可以淘汰一个值
+ *
+ * */
 
 /* Create a new eviction pool. */
 struct evictionPoolEntry *evictionPoolAlloc(void) {
@@ -3569,12 +3593,14 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
          * First, find the first empty bucket or the first populated
          * bucket that has an idle time smaller than our idle time. */
         k = 0;
+		//左边的都小于右边的
         while (k < REDIS_EVICTION_POOL_SIZE &&
                pool[k].key &&
                pool[k].idle < idle) k++;
         if (k == 0 && pool[REDIS_EVICTION_POOL_SIZE-1].key != NULL) {
             /* Can't insert if the element is < the worst element we have
              * and there are no empty buckets. */
+			//插不进去，因为就算是队列里最短时间的，也比这个长，不用被淘汰
             continue;
         } else if (k < REDIS_EVICTION_POOL_SIZE && pool[k].key == NULL) {
             /* Inserting into empty position. No setup needed before insert. */
@@ -3584,6 +3610,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
             if (pool[REDIS_EVICTION_POOL_SIZE-1].key == NULL) {
                 /* Free space on the right? Insert at k shifting
                  * all the elements from k to end to the right. */
+				//全体向右一个位置，挪出来一个空位
                 memmove(pool+k+1,pool+k,
                     sizeof(pool[0])*(REDIS_EVICTION_POOL_SIZE-k-1));
             } else {
@@ -3592,6 +3619,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
                 /* Shift all elements on the left of k (included) to the
                  * left, so we discard the element with smaller idle time. */
                 sdsfree(pool[0].key);
+				// to  from size 
                 memmove(pool,pool+1,sizeof(pool[0])*k);
             }
         }
