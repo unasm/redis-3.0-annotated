@@ -790,21 +790,29 @@ static void acceptCommonHandler(int fd, int flags) {
 
 /* 
  * 创建一个 TCP 连接处理器
+ * @param	aeEventLoop		事件处理器
+ * @param	fd				响应的描述字	
+ * @param	privdata		私有数据
+ * @param	mask			设置信息	
  */
 void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+	//1000,为什么这么高
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
+	//client ip 记录客户端的ip
     char cip[REDIS_IP_STR_LEN];
     REDIS_NOTUSED(el);
     REDIS_NOTUSED(mask);
     REDIS_NOTUSED(privdata);
 
-    while(max--) {
+    while (max--) {
         // accept 客户端连接
         cfd = anetTcpAccept(server.neterr, fd, cip, sizeof(cip), &cport);
         if (cfd == ANET_ERR) {
-            if (errno != EWOULDBLOCK)
+			//如果该套字节再也没有连接请求之后，终止
+            if (errno != EWOULDBLOCK) {
                 redisLog(REDIS_WARNING,
                     "Accepting client connection: %s", server.neterr);
+			}
             return;
         }
         redisLog(REDIS_VERBOSE,"Accepted %s:%d", cip, cport);

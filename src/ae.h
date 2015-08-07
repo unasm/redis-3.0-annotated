@@ -121,7 +121,7 @@ typedef struct aeTimeEvent {
     long when_ms; /* milliseconds */
 
     // 事件处理函数
-    aeTimeProc *timeProc;
+    aeTimeProc *timeProc; //=> serverCron
 
     // 事件释放函数
     aeEventFinalizerProc *finalizerProc;
@@ -176,7 +176,7 @@ typedef struct aeEventLoop {
     // 已就绪的文件事件
     aeFiredEvent *fired; /* Fired events */
 
-    // 时间事件
+    // 时间事件,链表
     aeTimeEvent *timeEventHead;
 
     // 事件处理器的开关

@@ -156,6 +156,7 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
  */
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
+	//numevents有多加一个变量的意义么
     int retval, numevents = 0;
 
     // 等待时间,epoll的实例化对象，epoll的监听列表，事件数量, 最大超时时间

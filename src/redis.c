@@ -2119,6 +2119,7 @@ void initServer() {
     // 创建共享对象
     createSharedObjects();
     adjustOpenFilesLimit();
+	//时间处理器
     server.el = aeCreateEventLoop(server.maxclients+REDIS_EVENTLOOP_FDSET_INCR);
     server.db = zmalloc(sizeof(redisDb)*server.dbnum);
 
@@ -2129,7 +2130,7 @@ void initServer() {
         exit(1);
 
     /* Open the listening Unix domain socket. */
-    // 打开 UNIX 本地端口
+    // 打开 UNIX 本地端口,如果指定了的话
     if (server.unixsocket != NULL) {
         unlink(server.unixsocket); /* don't care if this fails */
         server.sofd = anetUnixServer(server.neterr,server.unixsocket,
@@ -2189,7 +2190,7 @@ void initServer() {
 
     /* Create the serverCron() time event, that's our main way to process
      * background operations. */
-    // 为 serverCron() 创建时间事件,这是我们处理后台进程的主要方式
+    // 为 serverCron() 创建时间事件,这是我们处理后台进程的主要方式，定期触发serverCron
     if(aeCreateTimeEvent(server.el, 1, serverCron, NULL, NULL) == AE_ERR) {
         redisPanic("Can't create the serverCron time event.");
         exit(1);
@@ -2200,6 +2201,7 @@ void initServer() {
     // 为 TCP 连接关联连接应答（accept）处理器
     // 用于接受并应答客户端的 connect() 调用
     for (j = 0; j < server.ipfd_count; j++) {
+		//为ipfd 添加事件处理，放在epoll的监听列表里面
         if (aeCreateFileEvent(server.el, server.ipfd[j], AE_READABLE,
             acceptTcpHandler,NULL) == AE_ERR)
             {
@@ -2208,7 +2210,7 @@ void initServer() {
             }
     }
 
-    // 为本地套接字关联应答处理器
+    // 为本地套接字关联应答处理器,将sofd放在epoll的监听列表中
     if (server.sofd > 0 && 
 			aeCreateFileEvent(
 				server.el,

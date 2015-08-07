@@ -290,6 +290,7 @@ static void aeAddMillisecondsToNow(long long milliseconds, long *sec, long *ms) 
 
 /*
  * 创建时间事件
+ * @param	 milliseconds	 1 
  */
 long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
         aeTimeProc *proc, void *clientData,
@@ -573,6 +574,8 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
         }
 
         // 处理文件事件，阻塞时间由 tvp 决定
+		// 为什么要这样呢?在时间事件到来之前，都是没有其他的任务的，不如等待epoll响应
+		// 不太合理,为什么不是尽快响应请求呢
         numevents = aeApiPoll(eventLoop, tvp);
         for (j = 0; j < numevents; j++) {
             // 从已就绪数组中获取事件

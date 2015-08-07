@@ -71,7 +71,7 @@
 #define REDIS_DEFAULT_HZ        10      /* Time interrupt calls/sec. */
 #define REDIS_MIN_HZ            1
 #define REDIS_MAX_HZ            500 
-#define REDIS_SERVERPORT        6379    /* TCP port */
+EDIS_SENTINEL_PORTERPORT        6379    /* TCP port */
 #define REDIS_TCP_BACKLOG       511     /* TCP listen backlog */
 #define REDIS_MAXIDLETIME       0       /* default client timeout: infinite */
 #define REDIS_DEFAULT_DBNUM     16		// 最初的数据库数量
@@ -848,7 +848,7 @@ struct redisServer {
     // 命令表（无 rename 配置选项的作用）
     dict *orig_commands;        /* Command table before command renaming. */
 
-    // 事件状态,包括时间事件和文件事件
+    // 事件处理器,包括时间事件和文件事件
     aeEventLoop *el;
 
     // 最近一次使用时钟
@@ -891,11 +891,11 @@ struct redisServer {
     // 地址数量
     int bindaddr_count;         /* Number of addresses in server.bindaddr[] */
 
-    // UNIX 套接字文件地址
+    // UNIX 套接字文件地址,如果不在argv中指定，就为NULL
     char *unixsocket;           /* UNIX socket path */
     mode_t unixsocketperm;      /* UNIX socket permission */
 
-    // 描述符
+    // 描述符,响应后的处理函数为acceptTcpHandler
     int ipfd[REDIS_BINDADDR_MAX]; /* TCP socket file descriptors */
     // 描述符数量
     int ipfd_count;             /* Used slots in ipfd[] */

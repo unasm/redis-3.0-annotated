@@ -530,11 +530,19 @@ int anetUnixServer(char *err, char *path, mode_t perm, int backlog)
     return s;
 }
 
+/**
+ * @param	err		错误
+ * @param	s		监听套字节接口
+ * @param	*sa		接收地址信息
+ * @param	*len	地址信息的长度
+ */
 static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *len) {
     int fd;
     while(1) {
         fd = accept(s,sa,len);
         if (fd == -1) {
+			//在socket服务器端，设置了信号捕获机制，有子进程，当在父进程阻塞于慢系统调用时
+			//由父进程捕获到了一个有效信号时，内核会致使accept返回一个EINTR错误
             if (errno == EINTR)
                 continue;
             else {
@@ -549,6 +557,7 @@ static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *l
 
 /*
  * TCP 连接 accept 函数
+ * @param 
  */
 int anetTcpAccept(char *err, int s, char *ip, size_t ip_len, int *port) {
     int fd;
